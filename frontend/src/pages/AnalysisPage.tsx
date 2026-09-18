@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { SimulationResult, BottleneckAnalysis, PropagationAnalysis } from '../types';
 import { runSimulation, fetchBottleneckAnalysis, fetchPropagationAnalysis } from '../services/api';
-import { AlertCircle, GitCommit, ArrowDown, Activity, Layers, ShieldAlert, Cpu } from 'lucide-react';
+import { AlertCircle, ArrowDown, Activity, Layers, ShieldAlert, Cpu, Zap, GitCommit, ArrowRight } from 'lucide-react';
 
-export default function AnalysisPage() {
+export default function IntelligencePage() {
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
   const [bottleneck, setBottleneck] = useState<BottleneckAnalysis | null>(null);
   const [propagation, setPropagation] = useState<PropagationAnalysis | null>(null);
@@ -11,31 +11,43 @@ export default function AnalysisPage() {
 
   useEffect(() => {
     loadAnalysisData();
+
+    const handleSimUpdate = () => loadAnalysisData();
+    window.addEventListener('simulationUpdated', handleSimUpdate);
+    return () => window.removeEventListener('simulationUpdated', handleSimUpdate);
   }, []);
 
   const loadAnalysisData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch simulation result via API service
       const simData = await runSimulation();
       setSimulation(simData);
 
-      // 2. Fetch multi-metric bottleneck analysis via API service
       const bmData = await fetchBottleneckAnalysis(simData.run_id);
       setBottleneck(bmData);
 
-      // 3. Fetch disruption propagation chain via API service
-      const propData = await fetchPropagationAnalysis(simData.run_id, 'M3');
+      const propData = await fetchPropagationAnalysis(simData.run_id, simData.primary_bottleneck || 'M3');
       setPropagation(propData);
     } catch (err) {
-      console.error('Error fetching analysis data via API service:', err);
+      console.error('Error fetching intelligence data:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const navigateToTab = (tab: string) => {
+    window.dispatchEvent(new CustomEvent('navigateTab', { detail: { tab } }));
+  };
+
   if (loading || !simulation || !bottleneck || !propagation) {
-    return <div style={{ padding: '2rem' }}>Loading Bottleneck Intelligence & Propagation Data...</div>;
+    return (
+      <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Zap size={36} color="var(--text-main)" style={{ animation: 'spin 1.5s linear infinite' }} />
+          <div style={{ marginTop: '1rem', color: 'var(--text-main)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>LOADING INTELLIGENCE ENGINE...</div>
+        </div>
+      </div>
+    );
   }
 
   const primaryId = bottleneck.primary_bottleneck;
@@ -50,175 +62,163 @@ export default function AnalysisPage() {
 
   return (
     <div className="page-container">
-      <h1 style={{ margin: 0, fontSize: '1.75rem' }}>Bottleneck Intelligence & Disruption Propagation</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-        Multi-Metric Constraint Diagnostic & Causal Propagation Event Tracer
-      </p>
+      {/* Title */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h1 className="page-title">Bottleneck Intelligence & Propagation</h1>
+          <div className="page-subtitle">
+            Diagnostic Root-Cause Rationale & Causal Event Tracing Workflow
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={() => navigateToTab('scenarios')}>
+          Explore What-If Scenarios <ArrowRight size={16} />
+        </button>
+      </div>
 
-      {/* Primary Bottleneck Diagnostic Card */}
-      <div className="kpi-card" style={{ marginBottom: '2rem', borderColor: 'var(--accent-red)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <AlertCircle size={28} color="var(--accent-red)" />
+      {/* Primary Bottleneck Diagnostic Header Card */}
+      <div className="card-brutal" style={{ marginBottom: '1.75rem', backgroundColor: 'var(--accent-red-light)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '10px', backgroundColor: '#ffffff', border: 'var(--border-brutal)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlertCircle size={26} color="var(--accent-red)" />
+            </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Primary Bottleneck: {primaryId}</h2>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Detected via Multi-Metric Simulation Evidence</div>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>Primary Constraint: {primaryId}</h2>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-main)', marginTop: '0.15rem', fontWeight: 600 }}>
+                Detected via Bottleneck Severity Index (BSI) Multi-Metric Analysis
+              </div>
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <span className="badge badge-bottleneck" style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
-              BSI SCORE: {bottleneck.primary_bottleneck_score}
-            </span>
-          </div>
+
+          <span className="badge badge-bottleneck" style={{ fontSize: '0.85rem', padding: '0.4rem 0.95rem' }}>
+            BSI SCORE: {bottleneck.primary_bottleneck_score}%
+          </span>
         </div>
 
         {/* Why it is a bottleneck */}
         <div
           style={{
-            backgroundColor: '#090d16',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            padding: '1rem 1.25rem',
-            marginBottom: '1.5rem',
+            backgroundColor: '#ffffff',
+            border: 'var(--border-brutal)',
+            borderRadius: '12px',
+            padding: '1.25rem',
+            marginBottom: '1.25rem',
           }}
         >
-          <div style={{ fontWeight: 600, color: 'var(--accent-cyan)', marginBottom: '0.25rem' }}>Diagnostic Explanation (Why it is a bottleneck)</div>
-          <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', lineHeight: '1.5' }}>{bottleneck.primary_reason}</div>
+          <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)', marginBottom: '0.4rem' }}>
+            Diagnostic Rationale (Why it is a Bottleneck)
+          </div>
+          <div style={{ fontSize: '0.95rem', color: 'var(--text-main)', lineHeight: '1.6', fontWeight: 600 }}>
+            {bottleneck.primary_reason}
+          </div>
         </div>
 
-        {/* Supporting Metrics Grid */}
-        <h4 style={{ marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-muted)' }}>Supporting Operational Metrics</h4>
-        <div className="grid-cols-4" style={{ marginBottom: 0 }}>
-          <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Cpu size={14} color="var(--accent-cyan)" /> Utilization
+        {/* Supporting Operational Telemetry Grid */}
+        <h4 style={{ margin: '0 0 0.85rem 0', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)', fontWeight: 800 }}>
+          Supporting Operational Evidence
+        </h4>
+
+        <div className="grid-4" style={{ marginBottom: 0 }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '10px', border: 'var(--border-brutal)' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Cpu size={14} color="var(--text-main)" /> Station Utilization
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-cyan)', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.35rem', fontFamily: 'var(--font-mono)' }}>
               {primaryDetails.utilization}%
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Layers size={14} color="var(--accent-yellow)" /> Queue Buildup
+          <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '10px', border: 'var(--border-brutal)' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Layers size={14} color="var(--accent-yellow)" /> Queue Accumulation
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-yellow)', marginTop: '0.25rem' }}>
-              {primaryDetails.queue_length} units
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.35rem', fontFamily: 'var(--font-mono)' }}>
+              {primaryDetails.queue_length} <span style={{ fontSize: '0.85rem' }}>units</span>
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <ShieldAlert size={14} color="var(--accent-red)" /> Upstream Blocking Caused
+          <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '10px', border: 'var(--border-brutal)' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <ShieldAlert size={14} color="var(--accent-red)" /> Upstream Blocking
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-red)', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-red)', marginTop: '0.35rem', fontFamily: 'var(--font-mono)' }}>
               {primaryDetails.upstream_blocking_caused}%
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Activity size={14} color="var(--accent-purple)" /> Downstream Starvation Caused
+          <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '10px', border: 'var(--border-brutal)' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Activity size={14} color="var(--accent-purple)" /> Downstream Starvation
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-purple)', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-purple)', marginTop: '0.35rem', fontFamily: 'var(--font-mono)' }}>
               {primaryDetails.downstream_starvation_caused}%
             </div>
           </div>
         </div>
       </div>
 
-      {/* Disruption Impact Summary */}
-      <div className="grid-cols-2">
-        <div className="kpi-card">
-          <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Baseline vs Disruption Impact</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-            Empirical Output Quantification
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', backgroundColor: '#090d16', padding: '1.25rem', borderRadius: '8px' }}>
-            <div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Baseline Throughput</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{propagation.baseline_throughput} units</div>
-            </div>
-            <div style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>→</div>
-            <div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Disrupted Throughput</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--accent-red)' }}>
-                {propagation.scenario_throughput} units ({propagation.throughput_delta_pct}%)
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="kpi-card">
-          <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Propagation Summary</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-            Deterministic Causal Explanation
-          </p>
-          <div style={{ backgroundColor: '#090d16', padding: '1.25rem', borderRadius: '8px', lineHeight: '1.6', fontSize: '0.95rem' }}>
-            {propagation.summary}
-          </div>
-        </div>
-      </div>
-
-      {/* Visual Causal Propagation Flow Diagram */}
-      <div className="kpi-card">
-        <h3 style={{ marginTop: 0, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <GitCommit size={20} color="var(--accent-cyan)" /> Visual Disruption Propagation Chain
+      {/* Visual Causal Propagation Chain Stepper */}
+      <div className="card-brutal" style={{ marginBottom: '1.75rem' }}>
+        <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <GitCommit size={18} color="var(--text-main)" /> Causal Disruption Propagation Chain
         </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '2rem' }}>
-          M3 Slowdown ↓ Capacity Decrease ↓ Queue Increase ↓ Upstream Blocking ↓ Throughput Impact
-        </p>
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem', fontWeight: 600 }}>
+          {primaryId} Disruption ↓ capacity decrease ↓ queue buildup ↓ upstream blocking ↓ line throughput loss
+        </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.85rem' }}>
           {propagation.propagation_chain.map((step, idx) => (
-            <div key={step.step} style={{ width: '100%', maxWidth: '750px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div key={step.step} style={{ width: '100%', maxWidth: '780px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div
                 style={{
                   width: '100%',
-                  backgroundColor: '#090d16',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '1.25rem 1.5rem',
+                  backgroundColor: '#ffffff',
+                  border: 'var(--border-brutal)',
+                  boxShadow: 'var(--shadow-brutal-sm)',
+                  borderRadius: '12px',
+                  padding: '1.1rem 1.35rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                   <div
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      backgroundColor: idx === propagation.propagation_chain.length - 1 ? 'var(--accent-red)' : 'var(--accent-cyan)',
-                      color: '#0f172a',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      backgroundColor: idx === propagation.propagation_chain.length - 1 ? 'var(--accent-red-light)' : 'var(--accent-volt)',
+                      color: idx === propagation.propagation_chain.length - 1 ? 'var(--accent-red)' : '#0f172a',
+                      border: 'var(--border-brutal)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '1rem',
+                      fontWeight: 800,
+                      fontSize: '1.05rem',
+                      fontFamily: 'var(--font-mono)',
                     }}
                   >
-                    {step.step}
+                    0{step.step}
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
                       STAGE: {step.stage}
                     </div>
-                    <div style={{ fontWeight: 600, fontSize: '1rem', marginTop: '0.15rem' }}>{step.effect}</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.05rem', marginTop: '0.2rem' }}>{step.effect}</div>
                   </div>
                 </div>
 
                 <div
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: 'var(--bg-card-alt)',
                     padding: '0.5rem 1rem',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
                     color: 'var(--text-main)',
-                    border: '1px solid var(--border-color)',
+                    border: 'var(--border-brutal)',
+                    fontFamily: 'var(--font-mono)',
                   }}
                 >
                   {step.metric_change}
@@ -227,12 +227,28 @@ export default function AnalysisPage() {
 
               {idx < propagation.propagation_chain.length - 1 && (
                 <div style={{ margin: '0.25rem 0' }}>
-                  <ArrowDown size={20} color="var(--accent-cyan)" />
+                  <ArrowDown size={18} color="var(--text-main)" />
                 </div>
               )}
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Action Footer */}
+      <div className="card-brutal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--accent-volt)' }}>
+        <div>
+          <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+            Ready to Test Operational Interventions?
+          </h4>
+          <div style={{ fontSize: '0.85rem', color: '#0f172a', marginTop: '0.25rem', fontWeight: 600 }}>
+            Simulate virtual changes to cycle times, parallel servers, or buffer capacities without risk.
+          </div>
+        </div>
+
+        <button className="btn btn-secondary" style={{ padding: '0.75rem 1.6rem' }} onClick={() => navigateToTab('scenarios')}>
+          Explore What-If Scenarios <ArrowRight size={18} />
+        </button>
       </div>
     </div>
   );

@@ -4,18 +4,21 @@ import { fetchScenarioComparison, applyScenario } from '../services/api';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Columns, CheckCircle2, CheckSquare, Zap, ArrowRight, Loader2 } from 'lucide-react';
 
-export default function ComparisonPage() {
+export default function DecisionsPage() {
   const [matrix, setMatrix] = useState<ScenarioComparisonMatrix | null>(null);
   const [selectedRow, setSelectedRow] = useState<ScenarioComparisonRow | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyScenarioResponse | null>(null);
   
-  // Re-evaluation progress state
   const [applying, setApplying] = useState<boolean>(false);
   const [applyStep, setApplyStep] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     loadComparison();
+
+    const handleSimUpdate = () => loadComparison();
+    window.addEventListener('simulationUpdated', handleSimUpdate);
+    return () => window.removeEventListener('simulationUpdated', handleSimUpdate);
   }, []);
 
   const loadComparison = async () => {
@@ -27,7 +30,7 @@ export default function ComparisonPage() {
         setSelectedRow(data.comparison_matrix[3] || data.comparison_matrix[1]);
       }
     } catch (err) {
-      console.error('Error loading comparison via API service:', err);
+      console.error('Error loading scenario comparison:', err);
     } finally {
       setLoading(false);
     }
@@ -37,7 +40,6 @@ export default function ComparisonPage() {
     if (!selectedRow || selectedRow.scenario_id === 'baseline') return;
     setApplying(true);
     
-    // Animated progress sequence
     try {
       setApplyStep('Applying scenario...');
       await delay(600);
@@ -55,7 +57,7 @@ export default function ComparisonPage() {
       if (name.includes('parallel')) {
         modsM = [{ id: 'M3', capacity: 2 }];
       } else if (name.includes('increase m3 capacity') || name.includes('increase capacity') || name.includes('speed')) {
-        // Speed up M3 to 3.5 mins to demonstrate bottleneck migration to M4 or M2!
+        // Speed up M3 to 3.5 mins to demonstrate bottleneck migration to M4!
         modsM = [{ id: 'M3', processing_time: 3.5 }];
       } else if (name.includes('buffer')) {
         modsB = [{ id: 'B2', capacity: 16 }];
@@ -63,12 +65,14 @@ export default function ComparisonPage() {
         modsM = [{ id: 'M3', processing_time: 8.45 }];
       }
 
-      // Execute actual backend API call
       const res = await applyScenario(selectedRow.scenario_id, modsM, modsB);
       setApplyResult(res);
       await loadComparison();
+
+      // Notify global application views of model update
+      window.dispatchEvent(new Event('simulationUpdated'));
     } catch (err) {
-      console.error('Error applying scenario via API service:', err);
+      console.error('Error applying scenario:', err);
     } finally {
       setApplying(false);
       setApplyStep('');
@@ -76,7 +80,14 @@ export default function ComparisonPage() {
   };
 
   if (loading || !matrix) {
-    return <div style={{ padding: '2rem' }}>Loading Scenario Comparison Matrix...</div>;
+    return (
+      <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Zap size={36} color="var(--text-main)" style={{ animation: 'spin 1.5s linear infinite' }} />
+          <div style={{ marginTop: '1rem', color: 'var(--text-main)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>LOADING DECISION MATRIX...</div>
+        </div>
+      </div>
+    );
   }
 
   const chartData = matrix.comparison_matrix.map((row) => ({
@@ -89,16 +100,16 @@ export default function ComparisonPage() {
   return (
     <div className="page-container">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.75rem' }}>Scenario Comparison & Human Decision Center</h1>
-          <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>
-            Side-by-Side Trade-off Matrix & Digital Twin Application
-          </p>
+          <h1 className="page-title">Decisions & Scenario Comparison</h1>
+          <div className="page-subtitle">
+            Side-by-Side Trade-off Matrix & Closed-Loop Digital Twin Re-evaluation
+          </div>
         </div>
         {selectedRow && selectedRow.scenario_id !== 'baseline' && (
           <button className="btn btn-success" onClick={handleApplySelected} disabled={applying}>
-            <Zap size={18} /> {applying ? applyStep : `APPLY TO DIGITAL TWIN (${selectedRow.scenario_name})`}
+            <Zap size={16} fill="#fff" /> {applying ? applyStep : `APPLY TO DIGITAL TWIN`}
           </button>
         )}
       </div>
@@ -106,58 +117,55 @@ export default function ComparisonPage() {
       {/* Step-by-Step Re-Evaluation Progress Modal / Overlay */}
       {applying && (
         <div
+          className="card-brutal"
           style={{
-            backgroundColor: 'rgba(9, 13, 22, 0.9)',
-            border: '2px solid var(--accent-cyan)',
-            borderRadius: '12px',
-            padding: '2rem',
-            marginBottom: '2rem',
+            backgroundColor: 'var(--accent-volt)',
+            marginBottom: '1.75rem',
             textAlign: 'center',
-            boxShadow: '0 0 20px rgba(56, 189, 248, 0.2)',
+            padding: '2.5rem',
           }}
         >
-          <Loader2 size={36} color="var(--accent-cyan)" className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-          <h3 style={{ color: 'var(--accent-cyan)', marginTop: '1rem', marginBottom: '0.5rem' }}>
+          <Loader2 size={38} color="#0f172a" style={{ animation: 'spin 1s linear infinite' }} />
+          <h3 style={{ color: '#0f172a', marginTop: '1rem', marginBottom: '0.4rem', fontSize: '1.3rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
             {applyStep}
           </h3>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Updating digital factory model parameters, executing SimPy simulation engine, and recalculating multi-metric bottleneck intelligence.
+          <div style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 600 }}>
+            Updating digital model parameters, executing SimPy simulation, and recalculating multi-metric bottleneck migration.
           </div>
         </div>
       )}
 
-      {/* NEW BASELINE & Clear Before/After Visualization */}
+      {/* NEW BASELINE & Dynamic Bottleneck Migration Display */}
       {applyResult && !applying && (
         <div
+          className="card-brutal"
           style={{
-            backgroundColor: 'var(--bg-secondary)',
-            border: '2px solid var(--accent-green)',
-            borderRadius: '12px',
+            backgroundColor: 'var(--accent-green-light)',
+            marginBottom: '1.75rem',
             padding: '1.75rem',
-            marginBottom: '2.5rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <CheckCircle2 size={28} color="var(--accent-green)" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', borderBottom: 'var(--border-brutal)', paddingBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <CheckCircle2 size={30} color="var(--accent-green)" />
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--accent-green)' }}>NEW BASELINE ACTIVATED</h2>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Digital twin model successfully updated with human decision</div>
+                <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--accent-green)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>NEW BASELINE ACTIVATED</h2>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-main)', fontWeight: 600 }}>Digital twin state successfully updated with human decision</div>
               </div>
             </div>
-            <span className="badge badge-normal" style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
-              STATE UPDATED
+            <span className="badge badge-normal" style={{ fontSize: '0.82rem', padding: '0.4rem 0.95rem' }}>
+              MODEL SYNCHRONIZED
             </span>
           </div>
 
-          {/* Dynamic Bottleneck Migration Header */}
+          {/* Bottleneck Migration Banner */}
           <div
             style={{
-              backgroundColor: '#090d16',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '1rem 1.25rem',
-              marginBottom: '1.5rem',
+              backgroundColor: '#ffffff',
+              border: 'var(--border-brutal)',
+              borderRadius: '10px',
+              padding: '1.1rem 1.35rem',
+              marginBottom: '1.25rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -165,56 +173,60 @@ export default function ComparisonPage() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Previous Bottleneck</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-red)' }}>{applyResult.previous_bottleneck}</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Previous Bottleneck</div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--accent-red)', fontFamily: 'var(--font-mono)', marginTop: '0.15rem' }}>
+                  {applyResult.previous_bottleneck}
+                </div>
               </div>
-              <ArrowRight size={24} color="var(--accent-cyan)" />
+              <ArrowRight size={22} color="var(--text-main)" />
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Bottleneck (New Baseline)</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-green)' }}>{applyResult.new_bottleneck}</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Current Bottleneck (New Baseline)</div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--accent-green)', fontFamily: 'var(--font-mono)', marginTop: '0.15rem' }}>
+                  {applyResult.new_bottleneck}
+                </div>
               </div>
             </div>
 
-            <div style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+            <div style={{ textAlign: 'right', fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
               {applyResult.migration_summary}
             </div>
           </div>
 
           {/* Side-by-Side Before / After Visual Comparison Cards */}
-          <div className="grid-cols-2" style={{ marginBottom: 0 }}>
+          <div className="grid-2" style={{ marginBottom: 0 }}>
             {/* BEFORE Card */}
-            <div style={{ backgroundColor: '#090d16', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1.25rem' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+            <div style={{ backgroundColor: '#ffffff', border: 'var(--border-brutal)', borderRadius: '10px', padding: '1.25rem' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>
                 Before Intervention (Previous Baseline)
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.88rem' }}>
                 <span>Throughput:</span>
-                <span style={{ fontWeight: 700 }}>{matrix.baseline_throughput} units</span>
+                <span style={{ fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{matrix.baseline_throughput} units</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.88rem' }}>
                 <span>Line WIP:</span>
-                <span style={{ fontWeight: 700 }}>{matrix.baseline_wip} items</span>
+                <span style={{ fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{matrix.baseline_wip} items</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span>Primary Bottleneck:</span>
                 <span className="badge badge-bottleneck">{applyResult.previous_bottleneck}</span>
               </div>
             </div>
 
             {/* AFTER Card */}
-            <div style={{ backgroundColor: '#090d16', border: '1px solid var(--accent-green)', borderRadius: '8px', padding: '1.25rem' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-green)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+            <div style={{ backgroundColor: '#ffffff', border: 'var(--border-brutal)', borderRadius: '10px', padding: '1.25rem' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent-green)', marginBottom: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>
                 After Intervention (New Baseline)
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.88rem' }}>
                 <span>Throughput:</span>
-                <span style={{ fontWeight: 700, color: 'var(--accent-green)' }}>{applyResult.new_simulation_result.throughput} units</span>
+                <span style={{ fontWeight: 800, color: 'var(--accent-green)', fontFamily: 'var(--font-mono)' }}>{applyResult.new_simulation_result.throughput} units</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.88rem' }}>
                 <span>Line WIP:</span>
-                <span style={{ fontWeight: 700 }}>{applyResult.new_simulation_result.wip} items</span>
+                <span style={{ fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{applyResult.new_simulation_result.wip} items</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span>Primary Bottleneck:</span>
                 <span className="badge badge-normal">{applyResult.new_bottleneck}</span>
               </div>
@@ -223,110 +235,117 @@ export default function ComparisonPage() {
         </div>
       )}
 
-      {/* Visual Chart */}
-      <div className="kpi-card" style={{ marginBottom: '2rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1.25rem' }}>Throughput & WIP Comparison Chart</h3>
+      {/* Visual Scenario Bar Chart */}
+      <div className="card-brutal" style={{ marginBottom: '1.75rem' }}>
+        <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1.1rem', fontWeight: 800 }}>Throughput & WIP Trade-off Matrix Chart</h3>
         <div style={{ height: '280px', width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
-              <YAxis stroke="var(--text-muted)" />
-              <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} />
-              <Bar dataKey="throughput" fill="var(--accent-cyan)" name="Throughput (Units)" />
-              <Bar dataKey="wip" fill="var(--accent-yellow)" name="WIP (Items)" />
-              <Bar dataKey="queue" fill="var(--accent-red)" name="B2 Queue (Units)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="name" stroke="#0f172a" fontSize={12} tickLine={false} fontWeight={700} />
+              <YAxis stroke="#0f172a" fontSize={12} tickLine={false} fontWeight={700} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '2px solid #0f172a',
+                  borderRadius: '8px',
+                  color: '#0f172a',
+                  fontWeight: 700,
+                }}
+              />
+              <Bar dataKey="throughput" fill="#0f172a" name="Throughput (Units)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="wip" fill="#d97706" name="WIP (Items)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="queue" fill="#e11d48" name="B2 Queue (Units)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Comparison Table */}
-      <div className="kpi-card" style={{ marginBottom: '2rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Columns size={20} color="var(--accent-cyan)" /> Scenario Comparison Matrix (Select Row)
+      <div className="card-brutal" style={{ marginBottom: '1.75rem' }}>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Columns size={18} color="var(--text-main)" /> Scenario Trade-off Matrix (Select Row to Apply)
         </h3>
 
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ width: '40px' }}>Select</th>
-              <th>Scenario</th>
-              <th>Throughput</th>
-              <th>WIP</th>
-              <th>Utilization (M3)</th>
-              <th>Queue (B2)</th>
-              <th>Primary Bottleneck</th>
-              <th>Measurable Trade-offs</th>
-            </tr>
-          </thead>
-          <tbody>
-            {matrix.comparison_matrix.map((row) => {
-              const isSelected = selectedRow?.scenario_id === row.scenario_id;
-              const isBaseline = row.scenario_id === 'baseline';
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>Select</th>
+                <th>Scenario Name</th>
+                <th>Throughput</th>
+                <th>WIP</th>
+                <th>M3 Util</th>
+                <th>B2 Queue</th>
+                <th>Primary Bottleneck</th>
+                <th>Trade-off Analysis</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matrix.comparison_matrix.map((row) => {
+                const isSelected = selectedRow?.scenario_id === row.scenario_id;
 
-              return (
-                <tr
-                  key={row.scenario_id}
-                  onClick={() => setSelectedRow(row)}
-                  style={{
-                    backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-                    cursor: 'pointer',
-                    borderLeft: isSelected ? '4px solid var(--accent-cyan)' : 'none',
-                  }}
-                >
-                  <td style={{ textAlign: 'center' }}>
-                    <CheckSquare size={18} color={isSelected ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
-                  </td>
-                  <td style={{ fontWeight: 700, color: isBaseline ? 'var(--accent-cyan)' : 'var(--text-main)' }}>
-                    {row.scenario_name}
-                  </td>
-                  <td style={{ fontWeight: 600 }}>
-                    {row.throughput} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({row.throughput_delta})</span>
-                  </td>
-                  <td>{row.wip}</td>
-                  <td>{row.utilization}%</td>
-                  <td>{row.queue}</td>
-                  <td>
-                    <span className={`badge ${row.primary_bottleneck === 'M3' ? 'badge-bottleneck' : 'badge-normal'}`}>
-                      {row.primary_bottleneck}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: '300px' }}>{row.trade_offs}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                return (
+                  <tr
+                    key={row.scenario_id}
+                    onClick={() => setSelectedRow(row)}
+                    style={{
+                      backgroundColor: isSelected ? 'var(--accent-volt)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <td style={{ textAlign: 'center' }}>
+                      <CheckSquare size={18} color="#0f172a" />
+                    </td>
+                    <td style={{ fontWeight: 800, color: '#0f172a' }}>
+                      {row.scenario_name}
+                    </td>
+                    <td style={{ fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
+                      {row.throughput} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({row.throughput_delta})</span>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{row.wip}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{row.utilization}%</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{row.queue}</td>
+                    <td>
+                      <span className={`badge ${row.primary_bottleneck === 'M3' ? 'badge-bottleneck' : 'badge-normal'}`}>
+                        {row.primary_bottleneck}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600, maxWidth: '280px' }}>{row.trade_offs}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Selected Decision Action Box */}
+      {/* Selected Action Card */}
       {selectedRow && (
         <div
-          className="kpi-card"
+          className="card-brutal"
           style={{
-            backgroundColor: 'var(--bg-secondary)',
-            border: '2px solid var(--accent-cyan)',
+            backgroundColor: 'var(--accent-volt)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--accent-cyan)' }}>
+            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
               Selected Decision: {selectedRow.scenario_name}
             </h4>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '0.85rem', color: '#0f172a', marginTop: '0.25rem', fontWeight: 600 }}>
               {selectedRow.trade_offs}
             </div>
           </div>
 
           {selectedRow.scenario_id !== 'baseline' ? (
-            <button className="btn btn-success" style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }} onClick={handleApplySelected} disabled={applying}>
-              <Zap size={20} /> APPLY TO DIGITAL TWIN
+            <button className="btn btn-success" style={{ padding: '0.75rem 1.6rem', fontSize: '0.95rem' }} onClick={handleApplySelected} disabled={applying}>
+              <Zap size={18} fill="#fff" /> APPLY TO DIGITAL TWIN
             </button>
           ) : (
-            <span className="badge badge-normal" style={{ fontSize: '0.85rem' }}>ACTIVE BASELINE</span>
+            <span className="badge badge-volt" style={{ fontSize: '0.82rem' }}>ACTIVE BASELINE</span>
           )}
         </div>
       )}
