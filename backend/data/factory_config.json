@@ -1,0 +1,85 @@
+{
+  "factory_id": "factory_01",
+  "factory_name": "Precision Assembly Plant 1",
+  "line_sequence": [
+    "M1", "B1", "M2", "B2", "M3", "B3", "M4", "B4", "M5"
+  ],
+  "machines": [
+    {
+      "id": "M1",
+      "name": "Raw Prep",
+      "processing_time": 4.0,
+      "capacity": 1,
+      "availability": 98.0,
+      "downtime": 20.0,
+      "status": "IDLE",
+      "sequence": 1
+    },
+    {
+      "id": "M2",
+      "name": "Machining",
+      "processing_time": 4.5,
+      "capacity": 1,
+      "availability": 95.0,
+      "downtime": 30.0,
+      "status": "IDLE",
+      "sequence": 2
+    },
+    {
+      "id": "M3",
+      "name": "Component Assembly",
+      "processing_time": 6.5,
+      "capacity": 1,
+      "availability": 90.0,
+      "downtime": 45.0,
+      "status": "IDLE",
+      "sequence": 3
+    },
+    {
+      "id": "M4",
+      "name": "Inspection",
+      "processing_time": 4.2,
+      "capacity": 1,
+      "availability": 97.0,
+      "downtime": 25.0,
+      "status": "IDLE",
+      "sequence": 4
+    },
+    {
+      "id": "M5",
+      "name": "Packaging",
+      "processing_time": 3.8,
+      "capacity": 1,
+      "availability": 99.0,
+      "downtime": 15.0,
+      "status": "IDLE",
+      "sequence": 5
+    }
+  ],
+  "buffers": [
+    {
+      "id": "B1",
+      "capacity": 10,
+      "current_wip": 0,
+      "sequence": 1
+    },
+    {
+      "id": "B2",
+      "capacity": 8,
+      "current_wip": 0,
+      "sequence": 2
+    },
+    {
+      "id": "B3",
+      "capacity": 5,
+      "current_wip": 0,
+      "sequence": 3
+    },
+    {
+      "id": "B4",
+      "capacity": 10,
+      "current_wip": 0,
+      "sequence": 4
+    }
+  ]
+}
