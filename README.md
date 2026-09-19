@@ -5,6 +5,33 @@
 
 ---
 
+## 🚀 Production Deployment Overview
+
+The platform is engineered for zero-downtime, continuous deployment using a decoupled cloud-native architecture:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      GITHUB                             │
+│       https://github.com/elaa0947/jarvis-hacakthon2026   │
+└────────────────────────────┬────────────────────────────┘
+                             │
+            ┌────────────────┴────────────────┐
+            ▼                                 ▼
+┌───────────────────────┐         ┌───────────────────────┐
+│ VERCEL FRONTEND HOST  │         │ RENDER BACKEND ENGINE │
+│ • React + Vite + TS   │ ──HTTPS─▶ • FastAPI + SimPy     │
+│ • SPA Routing Rewrites│         │ • CORS Protection     │
+└───────────────────────┘         └───────────┬───────────┘
+                                              │
+                                              ▼
+                                  ┌───────────────────────┐
+                                  │ MANAGED POSTGRESQL DB │
+                                  │ • Persistence & Audits│
+                                  └───────────────────────┘
+```
+
+---
+
 ## 🔄 End-to-End Operational Workflow
 
 The platform follows a **closed-loop decision cycle** designed for manufacturing engineers, operations managers, and plant superintendents to move from raw line telemetry to verified decision execution without operational risk.
@@ -84,70 +111,31 @@ flowchart TD
 ```
 
 ### Tech Stack Details
-- **Backend Application**: Python 3.14, FastAPI (ASGI web framework), Pydantic v2 (schema validation), Uvicorn.
+- **Backend Application**: Python 3.14, FastAPI (ASGI web framework), Pydantic v2 (schema validation), Uvicorn / Gunicorn.
 - **Simulation & Modeling Engine**: `SimPy` (Discrete-Event Simulation engine for queueing networks & process modeling).
-- **Frontend Workspace**: React 18, Vite, TypeScript, Recharts (data visualization), Lucide Icons, Custom CSS tokens.
+- **Frontend Workspace**: React 18, Vite, TypeScript, Recharts (data visualization), Lucide Icons, Custom CSS design tokens.
 - **Automated Testing Suite**: Pytest (48 backend integration & unit tests), TypeScript Compiler (`tsc --noEmit`).
 
 ---
 
-## ⚙️ Core Analytics & Mathematical Formulations
+## 🌐 Environment Variables & Deployment Matrix
 
-### 1. Discrete-Event Simulation Engine (`SimPy`)
-The backend models a 5-stage sequential manufacturing system:
+### Frontend Environment Variables (`frontend/.env`)
+| Variable | Description | Example (Local) | Example (Production) |
+| :--- | :--- | :--- | :--- |
+| `VITE_API_URL` | Base HTTPS URL of deployed FastAPI backend | `http://localhost:8000` | `https://digital-twin-backend.onrender.com` |
 
-$$\text{M1} \longrightarrow \text{B1} \longrightarrow \text{M2} \longrightarrow \text{B2} \longrightarrow \text{M3} \longrightarrow \text{B3} \longrightarrow \text{M4} \longrightarrow \text{B4} \longrightarrow \text{M5}$$
-
-- **Stations ($M_1 \dots M_5$)**: Modeled as limited-capacity resources with processing cycle times, breakdown probability distributions, and MTTR repair cycles.
-- **Buffers ($B_1 \dots B_4$)**: Limited-capacity storage queues governing upstream blocking and downstream starvation mechanics.
-
-### 2. Multi-Metric Bottleneck Severity Index (BSI)
-Rather than relying on simple utilization heuristics, BSI calculates a multi-dimensional constraint score for each station $i$:
-
-$$\text{BSI}_i = w_1 \cdot U_i + w_2 \cdot Q_i + w_3 \cdot B_i + w_4 \cdot S_i$$
-
-Where:
-- $U_i$: Operational Utilization Percentage.
-- $Q_i$: Normalized Buffer Queue Accumulation.
-- $B_i$: Upstream Blocking Percentage caused by downstream queue saturation.
-- $S_i$: Downstream Starvation Percentage caused by upstream delays.
-- $w_1, w_2, w_3, w_4$: Empirical weighting factors ($w_1=0.35, w_2=0.25, w_3=0.25, w_4=0.15$).
-
-### 3. Causal Disruption Propagation Tracing
-Traces the downstream and upstream impact chain of an operational bottleneck:
-
-$$\text{Root Disruption (M3)} \longrightarrow \text{Cycle Time Spike} \longrightarrow \text{Buffer Queue (B2) Saturation} \longrightarrow \text{Upstream Blocking (M2)} \longrightarrow \text{Line Output Loss}$$
+### Backend Environment Variables (`backend/.env`)
+| Variable | Description | Example (Local) | Example (Production) |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Service binding port | `8000` | `10000` (Assigned by cloud host) |
+| `HOST` | Server host binding | `127.0.0.1` | `0.0.0.0` |
+| `CORS_ORIGINS` | Comma-separated allowed frontend domains | `http://localhost:3000` | `https://jarvis-hackathon2026.vercel.app` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://...` | `postgresql://user:pass@ep-host.postgres.database.azure.com/db` |
 
 ---
 
-## 🖥 Product Workspaces
-
-| Workspace | Route | Focus & Functionality |
-| :--- | :--- | :--- |
-| **01 — OVERVIEW** | `/overview` | 10-second high-level system state. Features a 4-metric executive KPI strip, constraint spotlight, 2D line flow diagram, and direct investigation CTAs. |
-| **02 — DIGITAL TWIN** | `/digital-twin` | Full-screen interactive factory model. Clicking any station node opens the **Slide-Over Machine Detail Drawer** detailing cycle times, WIP, blocking %, starvation %, and instant scenario actions. |
-| **03 — INTELLIGENCE** | `/intelligence` | Comprehensive constraint diagnosis workspace. Displays BSI ranking scores, root cause telemetry grid, and the 5-stage visual causal disruption propagation stepper. |
-| **04 — SCENARIOS** | `/scenarios` | Parameter sandbox allowing operators to adjust cycle times, machine capacity, buffer capacity, and MTTR. Includes live delta preview and 1-click preset interventions. |
-| **05 — DECISIONS** | `/decisions` | Side-by-side scenario trade-off comparator. Includes interactive Recharts visualizations, **APPLY TO DIGITAL TWIN** model re-evaluation, and before/after dynamic bottleneck migration analysis. |
-
----
-
-## 🌐 REST API Endpoints Specification
-
-| Method | Endpoint | Description | Request Payload | Response Object |
-| :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/health` | System health & status check | None | `{"status": "ok"}` |
-| `GET` | `/api/factory` | Active factory layout configuration | None | `ProductionConfig` |
-| `POST` | `/api/simulation/run` | Execute SimPy simulation shift | `{"simulation_time": 480}` | `SimulationResult` |
-| `GET` | `/api/analysis/bottleneck/{run_id}` | Multi-metric BSI bottleneck ranking | None | `BottleneckAnalysis` |
-| `GET` | `/api/analysis/propagation/{run_id}` | Event disruption propagation chain | `?machine_id=M3` | `PropagationAnalysis` |
-| `POST` | `/api/scenarios/run` | Execute isolated what-if scenario | `{"scenario_name": "...", ...}` | `ScenarioRunResponse` |
-| `POST` | `/api/scenarios/compare` | Multivariable scenario trade-off matrix | `{"scenarios_list": [...]}` | `ScenarioComparisonMatrix` |
-| `POST` | `/api/scenarios/{id}/apply` | Decision execution & twin re-evaluation | `{"modified_machines": [...]}` | `ApplyScenarioResponse` |
-
----
-
-## � Quick Start Guide
+## 🛠 Local Development & Verification
 
 ### Prerequisites
 - Python 3.10+
@@ -178,6 +166,39 @@ $env:PYTHONPATH="backend"; python -m pytest backend/tests
 cd frontend
 npx tsc --noEmit
 ```
+
+---
+
+## 🔧 Production Cloud Deployment Setup
+
+### Option A: Frontend Deployment on Vercel
+1. Log into [Vercel Dashboard](https://vercel.com/new).
+2. Import repository `https://github.com/elaa0947/jarvis-hacakthon2026`.
+3. Set **Root Directory** to `frontend`.
+4. Add Environment Variable: `VITE_API_URL = https://digital-twin-backend.onrender.com`.
+5. Deploy. Vercel automatically processes `frontend/vercel.json` for SPA routes.
+
+### Option B: Backend Deployment on Render
+1. Log into [Render Dashboard](https://dashboard.render.com).
+2. Click **New +** → **Web Service** (or Blueprint using `backend/render.yaml`).
+3. Connect repository `https://github.com/elaa0947/jarvis-hacakthon2026`.
+4. Set **Root Directory** to `backend`.
+5. Build Command: `pip install -r requirements.txt`
+6. Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+7. Add Environment Variables:
+   - `CORS_ORIGINS`: `https://your-vercel-app-name.vercel.app`
+   - `DATABASE_URL`: Managed PostgreSQL Connection URI
+8. Deploy Service.
+
+---
+
+## ❓ Troubleshooting & Edge Cases
+
+| Issue | Cause | Solution |
+| :--- | :--- | :--- |
+| `CORS Error on Frontend` | Backend `CORS_ORIGINS` does not match Vercel URL | Update `CORS_ORIGINS` env var on Render/Railway backend settings to include exact Vercel origin. |
+| `404 on Direct Route Refresh` | Static host failing SPA client routes | Verify `frontend/vercel.json` contains rewrites targeting `/index.html`. |
+| `Backend Cold Start Delay` | Free tier instance spun down | System shows clean loading spinners and non-blocking telemetry retries. |
 
 ---
 
